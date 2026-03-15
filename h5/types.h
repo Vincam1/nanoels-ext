@@ -17,6 +17,7 @@
 #define MODE_ELLIPSE 8
 #define MODE_GCODE   9
 #define MODE_Y       10
+#define MODE_TAPER   11
 
 // ============================================================
 // MEASUREMENT UNITS
@@ -92,6 +93,7 @@
 #define B_MODE_GCODE  105  // F9
 #define B_MODE_Y      106  // F10
 #define B_MODE        107  // F11 — cycle modes
+#define B_MODE_TAPER  115  // Nextion page-1 button id=22 (add to HMI), or any free key
 #define B_X           88   // x — zero X axis
 #define B_Z           90   // z — zero Z axis
 #define B_Y           72   // h — zero Y axis
@@ -153,6 +155,7 @@
 #define PREF_MEASURE          "mea"
 #define PREF_CONE_RATIO       "cr"
 #define PREF_TURN_PASSES      "tp"
+#define PREF_TAPER_PRESET     "tpr"
 #define PREF_MOVE_STEP        "ms"
 #define PREF_AUX_FORWARD      "af"
 

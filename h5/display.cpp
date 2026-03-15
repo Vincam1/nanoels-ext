@@ -131,7 +131,7 @@ bool isPassMode() {
 }
 
 bool manualMovesAllowedWhenOn() {
-  return mode == MODE_NORMAL || mode == MODE_ASYNC || mode == MODE_CONE || mode == MODE_Y;
+  return mode == MODE_NORMAL || mode == MODE_ASYNC || mode == MODE_CONE || mode == MODE_TAPER || mode == MODE_Y;
 }
 
 bool manualMovesIgnoredWhenOn() {
@@ -139,7 +139,7 @@ bool manualMovesIgnoredWhenOn() {
 }
 
 int getLastSetupIndex() {
-  if (mode == MODE_CONE || mode == MODE_GCODE) return 2;
+  if (mode == MODE_CONE || mode == MODE_GCODE || mode == MODE_TAPER) return 2;
   if (mode == MODE_THREAD) return 4;
   if (mode == MODE_TURN || mode == MODE_FACE || mode == MODE_CUT || mode == MODE_ELLIPSE) return 3;
   return 0;
@@ -194,6 +194,7 @@ String printMode() {
   if (mode == MODE_NORMAL)  return "GEAR";
   if (mode == MODE_ASYNC)   return "ASYNC";
   if (mode == MODE_CONE)    return "CONE";
+  if (mode == MODE_TAPER)   return "TAPER";
   if (mode == MODE_TURN)    return "TURN";
   if (mode == MODE_FACE)    return "FACE";
   if (mode == MODE_CUT)     return "CUT";
@@ -312,7 +313,8 @@ void updateDisplay() {
   bool spindleStopped = micros() > spindleEncTime + 100000;
   long newHashLine3 = z.pos + (showAngle ? spindlePos : -1) + (showTacho ? rpm : -2) +
     measure + (numpadResult > 0 ? numpadResult : -1) + mode * 5 + dupr +
-    (mode == MODE_CONE ? round(coneRatio * 10000) : 0) + turnPasses +
+    (mode == MODE_CONE ? round(coneRatio * 10000) : 0) +
+    (mode == MODE_TAPER ? taperPreset : 0) + turnPasses +
     opIndex + setupIndex + gcodeProgramIndex + gcodeProgramCount +
     spindleStopped * 3 + (isOn ? 139 : -117) + (inNumpad ? 10 : 0) +
     (auxForward ? 17 : -31) +
@@ -371,6 +373,14 @@ void updateDisplay() {
       else if (!isOn && setupIndex == 2) result = auxForward ? "External?" : "Internal?";
       else if (!isOn && setupIndex == 3) result = "Go?";
       else if (isOn && numpadResult == 0) result = "Cone ratio " + printNoTrailing0(coneRatio);
+    } else if (mode == MODE_TAPER) {
+      if (!isOn && setupIndex == 1) {
+        result = String(taperPresetName(taperPreset)) + " " + String(taperPresetRatio(taperPreset), 5) + "?";
+      } else if (!isOn && setupIndex == 2) {
+        result = auxForward ? "External?" : "Internal?";
+      } else if (isOn && numpadResult == 0) {
+        result = String(taperPresetName(taperPreset)) + " " + printNoTrailing0(coneRatio);
+      }
     }
 
     if (inNumpad && result == "") result = "Use " + printDupr(numpadToDeciMicrons()) + "?";

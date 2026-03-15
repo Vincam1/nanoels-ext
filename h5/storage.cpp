@@ -110,7 +110,7 @@ bool saveIfChanged() {
       y.leftStop == y.savedLeftStop && y.rightStop == y.savedRightStop &&
       y.disabled == y.savedDisabled &&
       coneRatio == savedConeRatio && turnPasses == savedTurnPasses &&
-      savedAuxForward == auxForward) {
+      savedAuxForward == auxForward && taperPreset == savedTaperPreset) {
     return false;
   }
 
@@ -151,6 +151,7 @@ bool saveIfChanged() {
   if (coneRatio != savedConeRatio)           pref.putFloat(PREF_CONE_RATIO,      savedConeRatio = coneRatio);
   if (turnPasses != savedTurnPasses)         pref.putInt(PREF_TURN_PASSES,       savedTurnPasses = turnPasses);
   if (auxForward != savedAuxForward)         pref.putBool(PREF_AUX_FORWARD,      savedAuxForward = auxForward);
+  if (taperPreset != savedTaperPreset)       pref.putInt(PREF_TAPER_PRESET,      savedTaperPreset = taperPreset);
   pref.end();
   return true;
 }

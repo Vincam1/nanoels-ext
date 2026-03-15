@@ -110,6 +110,7 @@ void setup() {
   savedConeRatio = coneRatio = pref.getFloat(PREF_CONE_RATIO, coneRatio);
   savedTurnPasses = turnPasses = pref.getInt(PREF_TURN_PASSES, turnPasses);
   savedAuxForward = auxForward = pref.getBool(PREF_AUX_FORWARD, true);
+  savedTaperPreset = taperPreset = pref.getInt(PREF_TAPER_PRESET, taperPreset);
   pref.end();
 
   // Enable motor drivers for axes that don't require rest between moves
@@ -165,6 +166,8 @@ void loop() {
     modeCut();
   } else if (mode == MODE_CONE) {
     modeCone();
+  } else if (mode == MODE_TAPER) {
+    modeTaper();
   } else if (mode == MODE_THREAD) {
     modeTurn(&z, &x);
   } else if (mode == MODE_ELLIPSE) {

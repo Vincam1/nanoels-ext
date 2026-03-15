@@ -124,6 +124,10 @@ float savedConeRatio   = 0.0f;
 float nextConeRatio    = 0.0f;
 bool  nextConeRatioFlag = false;
 
+// Taper preset (-1 = none/custom, 0-7 = MT0-MT7, 8-14 = JT0-JT6, 15 = JT33)
+int  taperPreset        = 2;    // Default: MT2
+int  savedTaperPreset   = -2;   // Force write on first run
+
 // Pass / automation
 int   turnPasses        = 3;
 int   savedTurnPasses   = 0;

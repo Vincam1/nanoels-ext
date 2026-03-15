@@ -56,6 +56,43 @@ void setTurnPasses(int value) {
   else      turnPasses = value;
 }
 
+// ============================================================
+// TAPER PRESET TABLE
+// Morse: ANSI B5.10 (taper-per-foot / 12 = diameter-change per unit length)
+// Jacobs: ANSI B9.3 ((D_large - D_small) / length)
+// Verify against your specific tooling before cutting.
+// ============================================================
+struct TaperPreset { const char* name; float coneRatio; };
+static const TaperPreset TAPER_PRESETS[] = {
+  {"MT0",  0.05205f},  // Morse taper 0
+  {"MT1",  0.04988f},  // Morse taper 1
+  {"MT2",  0.04995f},  // Morse taper 2
+  {"MT3",  0.05020f},  // Morse taper 3
+  {"MT4",  0.05194f},  // Morse taper 4
+  {"MT5",  0.05263f},  // Morse taper 5
+  {"MT6",  0.05214f},  // Morse taper 6
+  {"MT7",  0.05200f},  // Morse taper 7
+  {"JT0",  0.05688f},  // Jacobs taper 0
+  {"JT1",  0.07010f},  // Jacobs taper 1
+  {"JT2",  0.03758f},  // Jacobs taper 2
+  {"JT3",  0.03461f},  // Jacobs taper 3
+  {"JT4",  0.04485f},  // Jacobs taper 4
+  {"JT5",  0.05081f},  // Jacobs taper 5
+  {"JT6",  0.06270f},  // Jacobs taper 6
+  {"JT33", 0.06350f},  // Jacobs taper 33
+};
+const int TAPER_PRESET_COUNT = 16;
+
+const char* taperPresetName(int idx) {
+  if (idx >= 0 && idx < TAPER_PRESET_COUNT) return TAPER_PRESETS[idx].name;
+  return "?";
+}
+
+float taperPresetRatio(int idx) {
+  if (idx >= 0 && idx < TAPER_PRESET_COUNT) return TAPER_PRESETS[idx].coneRatio;
+  return 0.0f;
+}
+
 void setConeRatio(float value) {
   nextConeRatio     = value;
   nextConeRatioFlag = true;
@@ -110,7 +147,7 @@ void setRightStop(Axis* a, long value) {
 }
 
 void leaveStop(Axis* a, long oldStop) {
-  if (mode == MODE_CONE) {
+  if (mode == MODE_CONE || mode == MODE_TAPER) {
     markOrigin();
   } else if (mode == MODE_NORMAL && a == getPitchAxis() && a->pos == oldStop) {
     spindlePosSync = spindleModulo(spindlePos - spindleFromPos(a, a->pos));
@@ -286,6 +323,10 @@ void modeCone() {
 
   stepToContinuous(&z, posFromSpindle(&z, spindle, true));
   stepToContinuous(&x, round(z.pos * zToXRatio));
+}
+
+void modeTaper() {
+  modeCone();
 }
 
 void modeCut() {

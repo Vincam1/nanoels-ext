@@ -21,6 +21,11 @@ void setTurnPasses(int value);
 void setConeRatio(float value);
 void applyConeRatio();
 
+// Taper preset lookup (16 entries: MT0-MT7, JT0-JT6, JT33)
+extern const int TAPER_PRESET_COUNT;
+const char* taperPresetName(int idx);
+float       taperPresetRatio(int idx);
+
 // Normalize a pitch value to remove sub-precision noise
 long normalizePitch(long pitch);
 
@@ -45,5 +50,6 @@ void modeGearbox();
 void modeTurn(Axis* main, Axis* aux);
 void modeFace();
 void modeCone();
+void modeTaper();
 void modeCut();
 void modeEllipse(Axis* main, Axis* aux);

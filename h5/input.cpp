@@ -16,6 +16,10 @@ void buttonPlusMinusPress(bool plus) {
   if (mode == MODE_THREAD && setupIndex == 2) {
     if (minus && starts > 2)          setStarts(starts - 1);
     else if (plus && starts < STARTS_MAX) setStarts(starts + 1);
+  } else if (mode == MODE_TAPER && setupIndex == 1) {
+    if (plus  && taperPreset < TAPER_PRESET_COUNT - 1) taperPreset++;
+    else if (minus && taperPreset > 0)                  taperPreset--;
+    else beepFlag = true;
   } else if (isPassMode() && setupIndex == 1 && getNumpadResult() == 0) {
     if (minus && turnPasses > 1)          setTurnPasses(turnPasses - 1);
     else if (plus && turnPasses < PASSES_MAX) setTurnPasses(turnPasses + 1);
@@ -46,6 +50,7 @@ void buttonOnOffPress(bool on) {
     beepFlag = true;
   } else if (!isOn && on && setupIndex < getLastSetupIndex()) {
     if (mode == MODE_THREAD && setupIndex == 3) setConeRatio(0);
+    if (mode == MODE_TAPER  && setupIndex == 1) setConeRatio(taperPresetRatio(taperPreset));
     setupIndex++;
   } else if (isOn && on && (mode == MODE_TURN || mode == MODE_FACE || mode == MODE_THREAD)) {
     opIndexAdvanceFlag = true;
@@ -332,6 +337,7 @@ int processNextionMessage() {
       case 19: code = B_MODE_GCODE;   break;
       case 20: code = B_MODE_ASYNC;   break;
       case 21: code = B_MODE_Y;       break;
+      case 22: code = B_MODE_TAPER;   break;
     }
   } else if (pageId == 0x02) {
     // Settings page
@@ -463,6 +469,7 @@ void processKeypadEvent() {
   else if (keyCode == B_STOPD)         buttonRightStopPress(&x);
   else if (keyCode == B_STOPF && activeY) buttonLeftStopPress(&y);
   else if (keyCode == B_STOPB && activeY) buttonRightStopPress(&y);
+  else if (keyCode == B_MODE_TAPER)        setModeFromUi(MODE_TAPER, eventFromNextion);
   else if (keyCode == B_MODE_Y && activeY) setModeFromUi(MODE_Y, eventFromNextion);
   else if (keyCode == B_MODE_ELLIPSE)  setModeFromUi(MODE_ELLIPSE, eventFromNextion);
   else if (keyCode == B_MODE_GCODE)    setModeFromUi(MODE_GCODE,   eventFromNextion);
@@ -497,7 +504,8 @@ void processKeypadEvent() {
     else if (mode == MODE_NORMAL)  setModeFromTask(MODE_TURN);
     else if (mode == MODE_TURN)    setModeFromTask(MODE_FACE);
     else if (mode == MODE_FACE)    setModeFromTask(MODE_CONE);
-    else if (mode == MODE_CONE)    setModeFromTask(MODE_CUT);
+    else if (mode == MODE_CONE)    setModeFromTask(MODE_TAPER);
+    else if (mode == MODE_TAPER)   setModeFromTask(MODE_CUT);
     else if (mode == MODE_CUT)     setModeFromTask(MODE_THREAD);
     else if (mode == MODE_THREAD)  setModeFromTask(MODE_ELLIPSE);
     else if (mode == MODE_ELLIPSE) setModeFromTask(MODE_GCODE);

@@ -127,6 +127,10 @@ extern float savedConeRatio;
 extern float nextConeRatio;
 extern bool  nextConeRatioFlag;
 
+// Taper preset (-1 = none/custom, 0-7 = MT0-MT7, 8-14 = JT0-JT6, 15 = JT33)
+extern int   taperPreset;
+extern int   savedTaperPreset;
+
 // Pass / automation
 extern int   turnPasses;
 extern int   savedTurnPasses;
