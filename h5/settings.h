@@ -29,6 +29,9 @@
 //   tScrewY    — Y screw pitch (du)   (number, t9)
 //   bSave      — Save button          (id=10 → B_SETTINGS_SAVE)
 //   bCancel    — Cancel button        (id=11 → B_SETTINGS_CANCEL)
+//   bMeasureBLZ — Measure Z backlash  (id=12 → B_MEASURE_BL_Z)
+//   bMeasureBLX — Measure X backlash  (id=13 → B_MEASURE_BL_X)
+//   tSettingsStatus — Status line (read-only, shows results/errors)
 //
 // Bool toggles (invertZ, invertX, etc.) can be added as
 // checkbox or toggle button components using additional ids.
@@ -46,3 +49,10 @@ void saveSettingsFromDisplay();
 // Read a number back from a Nextion text component.
 // Returns defaultValue if the component text is empty or invalid.
 long readNumberFromDisplay(const String& componentId, long defaultValue);
+
+// Backlash calibration via DRO scale.
+// Pulses the axis in the negative direction (reversal from positive jog)
+// until the scale detects movement, then saves the result to Preferences.
+// Displays status on tSettingsStatus. Machine must be OFF before calling.
+void measureAndSaveBacklashZ();
+void measureAndSaveBacklashX();

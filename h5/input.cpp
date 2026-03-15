@@ -5,6 +5,7 @@
 #include "settings.h"
 #include "gcode.h"
 #include "dro.h"
+#include "storage.h"
 
 // ============================================================
 // BUTTON HANDLERS
@@ -337,6 +338,8 @@ int processNextionMessage() {
     switch (nextionBuffer[2]) {
       case 10: code = B_SETTINGS_SAVE;   break;
       case 11: code = B_SETTINGS_CANCEL; break;
+      case 12: code = B_MEASURE_BL_Z;    break;
+      case 13: code = B_MEASURE_BL_X;    break;
     }
   }
 
@@ -407,6 +410,14 @@ void processKeypadEvent() {
   }
   if (isPress && keyCode == B_SETTINGS_CANCEL) {
     toScreen("page 0");
+    return;
+  }
+  if (isPress && keyCode == B_MEASURE_BL_Z) {
+    measureAndSaveBacklashZ();
+    return;
+  }
+  if (isPress && keyCode == B_MEASURE_BL_X) {
+    measureAndSaveBacklashX();
     return;
   }
 

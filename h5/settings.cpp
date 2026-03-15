@@ -1,6 +1,8 @@
 #include "settings.h"
 #include "storage.h"
 #include "display.h"
+#include "stepper.h"
+#include "dro.h"
 
 // ============================================================
 // OPEN SETTINGS PAGE
@@ -120,4 +122,44 @@ void saveSettingsFromDisplay() {
 
   // Reboot so new hardware config is applied cleanly from scratch
   ESP.restart();
+}
+
+// ============================================================
+// BACKLASH CALIBRATION VIA DRO SCALE
+// ============================================================
+
+static void measureAndSaveBacklash(Axis* a, DRO_Scale& scale, bool& droActive,
+                                   long& backlashDu, const char* axisName) {
+  if (isOn) {
+    setText("tSettingsStatus", String(axisName) + " BL: turn OFF first");
+    return;
+  }
+  if (!droActive) {
+    setText("tSettingsStatus", String(axisName) + " BL: scale not active");
+    return;
+  }
+  setText("tSettingsStatus", String(axisName) + " BL: measuring...");
+
+  // Measure in the negative direction (reversal after a positive jog).
+  long result = measureBacklash(a, scale, false);
+
+  if (result < 0) {
+    setText("tSettingsStatus", String(axisName) + " BL: failed - jog + first");
+    return;
+  }
+
+  backlashDu       = result;
+  a->backlashSteps = lroundf((float)backlashDu * a->motorSteps / a->screwPitch);
+  saveHardwareSettings();
+
+  setText("tSettingsStatus",
+    String(axisName) + " BL=" + printDeciMicrons(backlashDu, 3) + " saved");
+}
+
+void measureAndSaveBacklashZ() {
+  measureAndSaveBacklash(&z, zScale, zDroActive, backlashDuZ, "Z");
+}
+
+void measureAndSaveBacklashX() {
+  measureAndSaveBacklash(&x, xScale, xDroActive, backlashDuX, "X");
 }

@@ -109,6 +109,12 @@
 #define B_Z_DRO  111  // Toggle Z axis DRO mode
 #define B_X_DRO  112  // Toggle X axis DRO mode
 
+// Backlash calibration — settings page (page 2) buttons, Nextion IDs 12/13.
+// Jog the axis in the positive direction first, then tap to measure backlash
+// on the reversal. Result is saved directly to Preferences.
+#define B_MEASURE_BL_Z  113  // Measure and save Z backlash via scale
+#define B_MEASURE_BL_X  114  // Measure and save X backlash via scale
+
 // ============================================================
 // PREFERENCES STORAGE KEYS
 // Runtime state (axis positions, mode, etc.)

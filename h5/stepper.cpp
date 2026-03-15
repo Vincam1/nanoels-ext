@@ -463,11 +463,18 @@ void taskMoveZ(void* param) {
         if (posCopy + delta > z.leftStop)  delta = z.leftStop  - posCopy;
         else if (posCopy + delta < z.rightStop) delta = z.rightStop - posCopy;
         z.speedMax = getStepMaxSpeed(&z);
+        // Feature 4: sample scale before step for motion validation
+        float zScaleBefore = (zDroActive && zDroMode) ? zScale.getPosition() : 0.0f;
         stepToContinuous(&z, posCopy + delta);
         waitForStep(&z);
+        // Feature 4: if scale moved opposite to commanded direction by >5 µm, abort
+        if (zDroActive && zDroMode &&
+            (zScale.getPosition() - zScaleBefore) * sign < -0.005f) break;
       } while (delta != 0 && (left ? buttonLeftPressed : buttonRightPressed));
       z.continuous = false;
       waitForPendingPos0(&z);
+      // Feature 2: reconcile stepper position to scale after move settles
+      if (zDroActive && zDroMode) syncAxisToScale(&z, zScale);
       if (isOn && mode == MODE_CONE) {
         if (xSemaphoreTake(motionMutex, 100) != pdTRUE) setEmergencyStop(ESTOP_MARK_ORIGIN);
         else { markOrigin(); xSemaphoreGive(motionMutex); }
@@ -509,12 +516,19 @@ void taskMoveX(void* param) {
       long posCopy = x.pos + x.pendingPos;
       if (posCopy + delta > x.leftStop)  delta = x.leftStop  - posCopy;
       else if (posCopy + delta < x.rightStop) delta = x.rightStop - posCopy;
+      // Feature 4: sample scale before step for motion validation
+      float xScaleBefore = (xDroActive && xDroMode) ? xScale.getPosition() : 0.0f;
       stepToContinuous(&x, posCopy + delta);
       waitForStep(&x);
+      // Feature 4: if scale moved opposite to commanded direction by >5 µm, abort
+      if (xDroActive && xDroMode &&
+          (xScale.getPosition() - xScaleBefore) * sign < -0.005f) break;
       pulseDelta = getAndResetPulses(&x);
     } while (delta != 0 && (pulseDelta != 0 || (up ? buttonUpPressed : buttonDownPressed)));
     x.continuous = false;
     waitForPendingPos0(&x);
+    // Feature 2: reconcile stepper position to scale after move settles
+    if (xDroActive && xDroMode) syncAxisToScale(&x, xScale);
     if (isOn && mode == MODE_CONE) {
       if (xSemaphoreTake(motionMutex, 100) != pdTRUE) setEmergencyStop(ESTOP_MARK_ORIGIN);
       else { markOrigin(); xSemaphoreGive(motionMutex); }
