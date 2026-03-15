@@ -52,4 +52,6 @@ void modeFace();
 void modeCone();
 void modeTaper();
 void modeCut();
+void modeGroove();
+void modeGrooveStraight();
 void modeEllipse(Axis* main, Axis* aux);

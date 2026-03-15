@@ -111,6 +111,10 @@ void setup() {
   savedTurnPasses = turnPasses = pref.getInt(PREF_TURN_PASSES, turnPasses);
   savedAuxForward = auxForward = pref.getBool(PREF_AUX_FORWARD, true);
   savedTaperPreset = taperPreset = pref.getInt(PREF_TAPER_PRESET, taperPreset);
+  savedThreadCutMode = threadCutMode = pref.getInt(PREF_THREAD_CUT_MODE, DEFAULT_THREAD_CUT_MODE);
+  savedThreadAngleTenths = threadAngleTenths = pref.getInt(PREF_THREAD_ANGLE, DEFAULT_THREAD_ANGLE_TENTHS);
+  savedGrooveToolRadiusDu = grooveToolRadiusDu = pref.getFloat(PREF_GROOVE_TOOL_R, DEFAULT_GROOVE_TOOL_RADIUS_DU);
+  savedGrooveStraightAngleTenths = grooveStraightAngleTenths = pref.getInt(PREF_GROOVE_ANGLE, DEFAULT_GROOVE_STRAIGHT_ANGLE_TENTHS);
   pref.end();
 
   // Enable motor drivers for axes that don't require rest between moves
@@ -154,8 +158,16 @@ void loop() {
   applySettings();
   processSpindleCounter();
   discountFullSpindleTurns();
-  if (!isOn || dupr == 0 || spindlePosSync != 0) {
+  // Groove modes do not require spindle synchronisation (dupr is unused),
+  // so they are checked before the dupr == 0 gate.
+  if (!isOn || spindlePosSync != 0) {
     // None of the modes work.
+  } else if (mode == MODE_GROOVE) {
+    modeGroove();
+  } else if (mode == MODE_GROOVE_STRAIGHT) {
+    modeGrooveStraight();
+  } else if (dupr == 0) {
+    // Pitch-dependent modes require a non-zero pitch.
   } else if (mode == MODE_NORMAL) {
     modeGearbox();
   } else if (mode == MODE_TURN) {

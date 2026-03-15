@@ -17,7 +17,17 @@
 #define MODE_ELLIPSE 8
 #define MODE_GCODE   9
 #define MODE_Y       10
-#define MODE_TAPER   11
+#define MODE_TAPER          11
+#define MODE_GROOVE         12  // Circular / elliptical groove
+#define MODE_GROOVE_STRAIGHT 13 // Straight (V-belt) groove
+
+// ============================================================
+// THREAD CUTTING STRATEGIES
+// ============================================================
+#define THREAD_CUT_RADIAL    0  // Pure X plunge; both flanks cut, decreasing depth
+#define THREAD_CUT_FLANK     1  // Flank infeed: Z shifts each pass so leading flank cuts
+#define THREAD_CUT_MODIFIED  2  // Modified flank: slight trailing-flank engagement (recommended)
+#define THREAD_CUT_ALTERNATING 3 // Alternating flanks; requires backlash-free Z ball screw
 
 // ============================================================
 // MEASUREMENT UNITS
@@ -93,7 +103,9 @@
 #define B_MODE_GCODE  105  // F9
 #define B_MODE_Y      106  // F10
 #define B_MODE        107  // F11 — cycle modes
-#define B_MODE_TAPER  115  // Nextion page-1 button id=22 (add to HMI), or any free key
+#define B_MODE_TAPER          115  // Nextion page-1 button id=22 (add to HMI), or any free key
+#define B_MODE_GROOVE         116  // Circular groove mode
+#define B_MODE_GROOVE_STRAIGHT 117 // Straight (V-belt) groove mode
 #define B_X           88   // x — zero X axis
 #define B_Z           90   // z — zero Z axis
 #define B_Y           72   // h — zero Y axis
@@ -158,6 +170,10 @@
 #define PREF_TAPER_PRESET     "tpr"
 #define PREF_MOVE_STEP        "ms"
 #define PREF_AUX_FORWARD      "af"
+#define PREF_THREAD_CUT_MODE  "tcm"
+#define PREF_THREAD_ANGLE     "tat"
+#define PREF_GROOVE_TOOL_R    "gtr"
+#define PREF_GROOVE_ANGLE     "gsa"
 
 // Hardware configuration keys (user-settable via HMI settings page)
 #define PREF_HW_ENC_PPR       "hw_eppr"

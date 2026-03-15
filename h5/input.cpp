@@ -16,6 +16,20 @@ void buttonPlusMinusPress(bool plus) {
   if (mode == MODE_THREAD && setupIndex == 2) {
     if (minus && starts > 2)          setStarts(starts - 1);
     else if (plus && starts < STARTS_MAX) setStarts(starts + 1);
+  } else if (mode == MODE_THREAD && setupIndex == 4) {
+    // Cycle thread cut mode
+    if (plus  && threadCutMode < 3) threadCutMode++;
+    else if (minus && threadCutMode > 0) threadCutMode--;
+    else beepFlag = true;
+  } else if (mode == MODE_GROOVE && setupIndex == 3) {
+    // Adjust tool corner radius in 0.1 mm steps
+    if (plus)  grooveToolRadiusDu = fminf(50000.0f, grooveToolRadiusDu + 1000.0f);
+    else       grooveToolRadiusDu = fmaxf(0.0f,     grooveToolRadiusDu - 1000.0f);
+  } else if (mode == MODE_GROOVE_STRAIGHT && setupIndex == 3) {
+    // Adjust V-belt flank angle in 1° steps
+    if (plus  && grooveStraightAngleTenths < 890) grooveStraightAngleTenths += 10;
+    else if (minus && grooveStraightAngleTenths > 0) grooveStraightAngleTenths -= 10;
+    else beepFlag = true;
   } else if (mode == MODE_TAPER && setupIndex == 1) {
     if (plus  && taperPreset < TAPER_PRESET_COUNT - 1) taperPreset++;
     else if (minus && taperPreset > 0)                  taperPreset--;
@@ -162,6 +176,16 @@ bool processNumpadResult(int keyCode) {
       setupIndex++;
     } else if (mode == MODE_THREAD && setupIndex == 3) {
       setConeRatio(newConeRatio);
+      setupIndex++;
+    } else if (mode == MODE_THREAD && setupIndex == 4 && numpadResult >= 10 && numpadResult <= 90) {
+      // Enter thread included angle in whole degrees (e.g. 60 for metric, 55 for inch)
+      threadAngleTenths = (int)numpadResult * 10;
+      // Don't advance setupIndex — user still needs to confirm cut mode with ON
+    } else if (mode == MODE_GROOVE && setupIndex == 3 && newDu > 0) {
+      grooveToolRadiusDu = (float)newDu;
+      setupIndex++;
+    } else if (mode == MODE_GROOVE_STRAIGHT && setupIndex == 3 && numpadResult >= 0 && numpadResult < 90) {
+      grooveStraightAngleTenths = (int)numpadResult * 10;
       setupIndex++;
     } else if (mode == MODE_CONE && setupIndex == 1) {
       setConeRatio(newConeRatio);
@@ -469,8 +493,10 @@ void processKeypadEvent() {
   else if (keyCode == B_STOPD)         buttonRightStopPress(&x);
   else if (keyCode == B_STOPF && activeY) buttonLeftStopPress(&y);
   else if (keyCode == B_STOPB && activeY) buttonRightStopPress(&y);
-  else if (keyCode == B_MODE_TAPER)        setModeFromUi(MODE_TAPER, eventFromNextion);
-  else if (keyCode == B_MODE_Y && activeY) setModeFromUi(MODE_Y, eventFromNextion);
+  else if (keyCode == B_MODE_TAPER)               setModeFromUi(MODE_TAPER,          eventFromNextion);
+  else if (keyCode == B_MODE_GROOVE)              setModeFromUi(MODE_GROOVE,         eventFromNextion);
+  else if (keyCode == B_MODE_GROOVE_STRAIGHT)     setModeFromUi(MODE_GROOVE_STRAIGHT, eventFromNextion);
+  else if (keyCode == B_MODE_Y && activeY)        setModeFromUi(MODE_Y, eventFromNextion);
   else if (keyCode == B_MODE_ELLIPSE)  setModeFromUi(MODE_ELLIPSE, eventFromNextion);
   else if (keyCode == B_MODE_GCODE)    setModeFromUi(MODE_GCODE,   eventFromNextion);
   else if (keyCode == B_MODE_ASYNC)    setModeFromUi(MODE_ASYNC,   eventFromNextion);
@@ -505,9 +531,11 @@ void processKeypadEvent() {
     else if (mode == MODE_TURN)    setModeFromTask(MODE_FACE);
     else if (mode == MODE_FACE)    setModeFromTask(MODE_CONE);
     else if (mode == MODE_CONE)    setModeFromTask(MODE_TAPER);
-    else if (mode == MODE_TAPER)   setModeFromTask(MODE_CUT);
-    else if (mode == MODE_CUT)     setModeFromTask(MODE_THREAD);
-    else if (mode == MODE_THREAD)  setModeFromTask(MODE_ELLIPSE);
+    else if (mode == MODE_TAPER)           setModeFromTask(MODE_CUT);
+    else if (mode == MODE_CUT)             setModeFromTask(MODE_GROOVE);
+    else if (mode == MODE_GROOVE)          setModeFromTask(MODE_GROOVE_STRAIGHT);
+    else if (mode == MODE_GROOVE_STRAIGHT) setModeFromTask(MODE_THREAD);
+    else if (mode == MODE_THREAD)          setModeFromTask(MODE_ELLIPSE);
     else if (mode == MODE_ELLIPSE) setModeFromTask(MODE_GCODE);
     else if (mode == MODE_GCODE)   setModeFromTask(MODE_ASYNC);
     else if (mode == MODE_ASYNC)   setModeFromTask(activeY ? MODE_Y : MODE_NORMAL);

@@ -110,7 +110,10 @@ bool saveIfChanged() {
       y.leftStop == y.savedLeftStop && y.rightStop == y.savedRightStop &&
       y.disabled == y.savedDisabled &&
       coneRatio == savedConeRatio && turnPasses == savedTurnPasses &&
-      savedAuxForward == auxForward && taperPreset == savedTaperPreset) {
+      savedAuxForward == auxForward && taperPreset == savedTaperPreset &&
+      threadCutMode == savedThreadCutMode && threadAngleTenths == savedThreadAngleTenths &&
+      grooveToolRadiusDu == savedGrooveToolRadiusDu &&
+      grooveStraightAngleTenths == savedGrooveStraightAngleTenths) {
     return false;
   }
 
@@ -152,6 +155,13 @@ bool saveIfChanged() {
   if (turnPasses != savedTurnPasses)         pref.putInt(PREF_TURN_PASSES,       savedTurnPasses = turnPasses);
   if (auxForward != savedAuxForward)         pref.putBool(PREF_AUX_FORWARD,      savedAuxForward = auxForward);
   if (taperPreset != savedTaperPreset)       pref.putInt(PREF_TAPER_PRESET,      savedTaperPreset = taperPreset);
+  if (threadCutMode != savedThreadCutMode)   pref.putInt(PREF_THREAD_CUT_MODE,   savedThreadCutMode = threadCutMode);
+  if (threadAngleTenths != savedThreadAngleTenths)
+                                             pref.putInt(PREF_THREAD_ANGLE,      savedThreadAngleTenths = threadAngleTenths);
+  if (grooveToolRadiusDu != savedGrooveToolRadiusDu)
+                                             pref.putFloat(PREF_GROOVE_TOOL_R,   savedGrooveToolRadiusDu = grooveToolRadiusDu);
+  if (grooveStraightAngleTenths != savedGrooveStraightAngleTenths)
+                                             pref.putInt(PREF_GROOVE_ANGLE,      savedGrooveStraightAngleTenths = grooveStraightAngleTenths);
   pref.end();
   return true;
 }

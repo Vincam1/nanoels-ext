@@ -122,12 +122,14 @@ String printAxisStopDiff(Axis* a, bool addTrailingSpace) {
 // ============================================================
 
 bool needZStops() {
-  return mode == MODE_TURN || mode == MODE_FACE || mode == MODE_THREAD || mode == MODE_ELLIPSE;
+  return mode == MODE_TURN || mode == MODE_FACE || mode == MODE_THREAD || mode == MODE_ELLIPSE
+      || mode == MODE_GROOVE || mode == MODE_GROOVE_STRAIGHT;
 }
 
 bool isPassMode() {
   return mode == MODE_TURN || mode == MODE_FACE || mode == MODE_CUT ||
-         mode == MODE_THREAD || mode == MODE_ELLIPSE;
+         mode == MODE_THREAD || mode == MODE_ELLIPSE ||
+         mode == MODE_GROOVE || mode == MODE_GROOVE_STRAIGHT;
 }
 
 bool manualMovesAllowedWhenOn() {
@@ -140,7 +142,8 @@ bool manualMovesIgnoredWhenOn() {
 
 int getLastSetupIndex() {
   if (mode == MODE_CONE || mode == MODE_GCODE || mode == MODE_TAPER) return 2;
-  if (mode == MODE_THREAD) return 4;
+  if (mode == MODE_THREAD) return 5; // added cut-mode selection step
+  if (mode == MODE_GROOVE || mode == MODE_GROOVE_STRAIGHT) return 4;
   if (mode == MODE_TURN || mode == MODE_FACE || mode == MODE_CUT || mode == MODE_ELLIPSE) return 3;
   return 0;
 }
@@ -153,6 +156,7 @@ long getPassModeZStart() {
   if (mode == MODE_TURN || mode == MODE_THREAD) return dupr > 0 ? z.rightStop : z.leftStop;
   if (mode == MODE_FACE) return auxForward ? z.rightStop : z.leftStop;
   if (mode == MODE_ELLIPSE) return dupr > 0 ? z.leftStop : z.rightStop;
+  if (mode == MODE_GROOVE || mode == MODE_GROOVE_STRAIGHT) return (z.leftStop + z.rightStop) / 2;
   return z.pos;
 }
 
@@ -160,6 +164,7 @@ long getPassModeXStart() {
   if (mode == MODE_TURN || mode == MODE_THREAD) return auxForward ? x.rightStop : x.leftStop;
   if (mode == MODE_FACE || mode == MODE_CUT) return dupr > 0 ? x.rightStop : x.leftStop;
   if (mode == MODE_ELLIPSE) return x.rightStop;
+  if (mode == MODE_GROOVE || mode == MODE_GROOVE_STRAIGHT) return auxForward ? x.rightStop : x.leftStop;
   return x.pos;
 }
 
@@ -191,18 +196,28 @@ long spindleModulo(long value) {
 }
 
 String printMode() {
-  if (mode == MODE_NORMAL)  return "GEAR";
-  if (mode == MODE_ASYNC)   return "ASYNC";
-  if (mode == MODE_CONE)    return "CONE";
-  if (mode == MODE_TAPER)   return "TAPER";
-  if (mode == MODE_TURN)    return "TURN";
-  if (mode == MODE_FACE)    return "FACE";
-  if (mode == MODE_CUT)     return "CUT";
-  if (mode == MODE_THREAD)  return "THREAD";
-  if (mode == MODE_ELLIPSE) return "ELLIP";
-  if (mode == MODE_GCODE)   return "GCODE";
-  if (mode == MODE_Y)       return "Y";
+  if (mode == MODE_NORMAL)         return "GEAR";
+  if (mode == MODE_ASYNC)          return "ASYNC";
+  if (mode == MODE_CONE)           return "CONE";
+  if (mode == MODE_TAPER)          return "TAPER";
+  if (mode == MODE_TURN)           return "TURN";
+  if (mode == MODE_FACE)           return "FACE";
+  if (mode == MODE_CUT)            return "CUT";
+  if (mode == MODE_THREAD)         return "THREAD";
+  if (mode == MODE_ELLIPSE)        return "ELLIP";
+  if (mode == MODE_GCODE)          return "GCODE";
+  if (mode == MODE_Y)              return "Y";
+  if (mode == MODE_GROOVE)         return "GROOVE";
+  if (mode == MODE_GROOVE_STRAIGHT) return "VGROOVE";
   return "";
+}
+
+String printThreadCutMode() {
+  if (threadCutMode == THREAD_CUT_RADIAL)      return "Radial";
+  if (threadCutMode == THREAD_CUT_FLANK)       return "Flank";
+  if (threadCutMode == THREAD_CUT_MODIFIED)    return "Mod.Flank";
+  if (threadCutMode == THREAD_CUT_ALTERNATING) return "Alt.Flank";
+  return "?";
 }
 
 // ============================================================
@@ -324,7 +339,10 @@ void updateDisplay() {
     (mode == MODE_Y ? y.pos + y.originPos +
       (y.leftStop == LONG_MAX ? 123 : y.leftStop) +
       (y.rightStop == LONG_MIN ? 1234 : y.rightStop) + y.disabled : 0) +
-    x.pos + x.originPos + z.pos;
+    x.pos + x.originPos + z.pos +
+    (mode == MODE_THREAD ? threadCutMode * 7 + threadAngleTenths : 0) +
+    ((mode == MODE_GROOVE || mode == MODE_GROOVE_STRAIGHT) ?
+       (long)(grooveToolRadiusDu / 100) + grooveStraightAngleTenths * 3 : 0);
 
   if (lcdHashLine3 != newHashLine3) {
     lcdHashLine3 = newHashLine3;
@@ -357,6 +375,17 @@ void updateDisplay() {
         else result = auxForward ? "External?" : "Internal?";
       } else if (mode == MODE_THREAD && !isOn && setupIndex == 3) {
         result = "Cone ratio " + String(numpadToConeRatio(), 5) + "?";
+      } else if (mode == MODE_THREAD && !isOn && setupIndex == 4) {
+        // Thread cut-mode selection: +/- cycles modes, numpad sets angle, ENTER confirms
+        if (inNumpad) {
+          result = "Angle " + String(numpadResult) + char(223) + "?";
+        } else {
+          result = "Cut: " + printThreadCutMode() + " " + String(threadAngleTenths / 10) + char(223) + "?";
+        }
+      } else if ((mode == MODE_GROOVE) && !isOn && setupIndex == 3) {
+        result = "Tool R " + printDeciMicrons((long)grooveToolRadiusDu, 3) + "?";
+      } else if (mode == MODE_GROOVE_STRAIGHT && !isOn && setupIndex == 3) {
+        result = "Angle " + String(grooveStraightAngleTenths / 10) + char(223) + "?";
       } else if (!isOn && setupIndex == getLastSetupIndex()) {
         long zOffset = getPassModeZStart() - z.pos;
         long xOffset = getPassModeXStart() - x.pos;

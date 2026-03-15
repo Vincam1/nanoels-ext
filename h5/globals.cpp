@@ -140,6 +140,19 @@ long  opSubIndex        = 0;
 int   opDuprSign        = 1;
 long  opDupr            = 0;
 
+// Threading cutting strategy
+int  threadCutMode           = DEFAULT_THREAD_CUT_MODE;
+int  savedThreadCutMode      = -1;  // force write on first save
+int  threadAngleTenths       = DEFAULT_THREAD_ANGLE_TENTHS;
+int  savedThreadAngleTenths  = -1;
+long threadSpindleOffset     = 0;   // computed per pass, not persisted
+
+// Groove mode parameters
+float grooveToolRadiusDu             = DEFAULT_GROOVE_TOOL_RADIUS_DU;
+float savedGrooveToolRadiusDu        = -1.0f;
+int   grooveStraightAngleTenths      = DEFAULT_GROOVE_STRAIGHT_ANGLE_TENTHS;
+int   savedGrooveStraightAngleTenths = -1;
+
 // Manual step
 long moveStep       = 0;
 long savedMoveStep  = 0;

@@ -101,6 +101,23 @@
 // Filesystem
 #define FORMAT_LITTLEFS_IF_FAILED true
 
+// ============================================================
+// THREAD CUTTING STRATEGY DEFAULTS
+// ============================================================
+#define DEFAULT_THREAD_CUT_MODE       0     // THREAD_CUT_RADIAL
+#define DEFAULT_THREAD_ANGLE_TENTHS   600   // 60° (metric ISO); use 550 for 55° inch/BSW
+// Modification angle for THREAD_CUT_MODIFIED (degrees subtracted from half-angle)
+// Industry recommendation: 2–3°; results in slight trailing-flank engagement for better finish.
+#define THREAD_FLANK_DELTA_DEG        2.0f
+
+// ============================================================
+// GROOVE MODE DEFAULTS
+// ============================================================
+// Tool corner radius (deci-microns). 1000 = 0.1 mm (typical MRMN 1mm-radius insert = 10000).
+#define DEFAULT_GROOVE_TOOL_RADIUS_DU 10000.0f
+// Straight groove (V-belt) flank angle × 10.  340 = 34°, 380 = 38°.
+#define DEFAULT_GROOVE_STRAIGHT_ANGLE_TENTHS 340
+
 // Storage versioning - increment when storage format changes (wipes old prefs)
 #define PREFERENCES_VERSION      1
 #define PREF_NAMESPACE           "h5"

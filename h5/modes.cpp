@@ -1,6 +1,7 @@
 #include "modes.h"
 #include "stepper.h"
 #include "display.h"
+#include <math.h>
 
 // ============================================================
 // PITCH / STARTS / MODE MANAGEMENT
@@ -215,7 +216,8 @@ void modeTurn(Axis* main, Axis* aux) {
   auxSafeDistance = (auxForward ? -1 : 1) * SAFE_DISTANCE_DU * aux->motorSteps / aux->screwPitch;
 
   if (opIndex == 0) {
-    startOffset     = starts == 1 ? 0 : round(encoderStepsFloat / starts);
+    startOffset        = starts == 1 ? 0 : round(encoderStepsFloat / starts);
+    threadSpindleOffset = 0;
     main->speedMax  = main->speedManualMove;
     aux->speedMax   = aux->speedManualMove;
     long auxPos     = auxStartStop;
@@ -232,15 +234,46 @@ void modeTurn(Axis* main, Axis* aux) {
       opIndexAdvanceFlag = false;
       opIndex += starts;
     }
+
+    // Depth fraction for this pass.
+    // Threading flank modes use uniform (linear) depth per pass for consistent chip load.
+    // Radial mode uses a quadratic series (heavier early passes, lighter finishing passes).
     float fraction = (turnPasses - ceil(opIndex / float(starts))) / turnPasses;
-    if (mode == MODE_THREAD) fraction = fraction * fraction;
+    if (mode == MODE_THREAD && threadCutMode == THREAD_CUT_RADIAL) fraction = fraction * fraction;
     long auxPos = auxEndStop - (auxEndStop - auxStartStop) * fraction;
 
     if (opSubIndex == 0) {
       stepToFinal(aux, auxPos);
       if (aux->pos == auxPos) {
-        opSubIndex    = 1;
-        spindlePosSync = spindleModulo(spindlePosGlobal - spindleFromPos(main, main->posGlobal) + startOffset * (opIndex - 1));
+        opSubIndex = 1;
+
+        // Flank infeed: compute spindle-step offset so the tool enters the thread
+        // groove at a shifted axial position, cutting primarily on the leading flank.
+        // The offset is derived from the cumulative X depth via:
+        //   ΔZ_du = cumulativeDepth_du × tan(infeedHalfAngle)
+        //   ΔSpindle = ΔZ_du × encoderStepsFloat / |dupr|
+        if (mode == MODE_THREAD && threadCutMode != THREAD_CUT_RADIAL && dupr != 0) {
+          float halfAngleDeg = threadAngleTenths / 20.0f; // half of included angle, in degrees
+          if (threadCutMode == THREAD_CUT_MODIFIED || threadCutMode == THREAD_CUT_ALTERNATING) {
+            halfAngleDeg -= THREAD_FLANK_DELTA_DEG; // slight trailing-flank engagement
+          }
+          float halfAngleRad = halfAngleDeg * (float)M_PI / 180.0f;
+          // Cumulative aux-axis depth from start position (in deci-microns)
+          float depthDu = fabsf((float)(auxPos - auxStartStop)) * aux->screwPitch / aux->motorSteps;
+          long  offset  = lroundf(depthDu * tanf(halfAngleRad) * encoderStepsFloat / fabsf((float)dupr));
+          if (threadCutMode == THREAD_CUT_ALTERNATING) {
+            // Alternate sign each pass: odd passes cut leading flank, even cut trailing flank.
+            int passNum = (int)ceilf(opIndex / (float)starts);
+            threadSpindleOffset = (passNum % 2 == 1) ? offset : -offset;
+          } else {
+            threadSpindleOffset = offset; // always shift in same direction for flank/modified
+          }
+        } else {
+          threadSpindleOffset = 0;
+        }
+
+        spindlePosSync = spindleModulo(spindlePosGlobal - spindleFromPos(main, main->posGlobal)
+                                       + startOffset * (opIndex - 1) + threadSpindleOffset);
         return;
       }
     }
@@ -367,6 +400,282 @@ void modeCut() {
   } else {
     setIsOnFromLoop(false);
     beepFlag = true;
+  }
+}
+
+// ============================================================
+// GROOVE — circular / elliptical cross-section groove
+//
+// The groove cross-section is a semi-ellipse in the Z-X plane.
+// Z stops define the groove width (ZP); X stops define the depth (XP).
+// grooveToolRadiusDu is the radius of the round insert used.
+//
+// Tool-centre path semi-axes (after corner-radius compensation):
+//   aEff (Z) = ZP/2  − toolRadius
+//   bEff (X) = XP    − toolRadius
+//
+// For a circular groove set ZP = 2 × XP.
+// ============================================================
+
+void modeGroove() {
+  if (z.movingManually || x.movingManually || turnPasses <= 0 ||
+      z.leftStop == LONG_MAX || z.rightStop == LONG_MIN ||
+      x.leftStop == LONG_MAX || x.rightStop == LONG_MIN) {
+    setIsOnFromLoop(false);
+    return;
+  }
+
+  // Direction: auxForward=true → external (cut toward x.leftStop from x.rightStop)
+  long xSurface    = auxForward ? x.rightStop : x.leftStop;
+  long xDeep       = auxForward ? x.leftStop  : x.rightStop;
+  int  xDir        = (xDeep > xSurface) ? 1 : -1;
+  long zCenter     = (z.leftStop + z.rightStop) / 2;
+
+  // Groove dimensions in stepper steps
+  long zHalfSteps  = abs(z.leftStop - z.rightStop) / 2; // ZP/2
+  long xTotalSteps = abs(xDeep - xSurface);             // XP
+
+  // Tool corner radius converted to each axis' step space
+  long toolRz = lroundf(grooveToolRadiusDu * z.motorSteps / z.screwPitch);
+  long toolRx = lroundf(grooveToolRadiusDu * x.motorSteps / x.screwPitch);
+
+  // Effective semi-axes for the tool-centre path
+  long aEff = zHalfSteps - toolRz; // Z semi-axis in steps
+  long bEff = xTotalSteps - toolRx; // X depth in steps
+
+  if (aEff <= 0 || bEff <= 0) {
+    setIsOnFromLoop(false);
+    return;
+  }
+
+  if (opIndex == 0) {
+    // Phase 0: position to the right edge of the groove at the surface
+    z.speedMax = z.speedManualMove;
+    x.speedMax = x.speedManualMove;
+    stepToFinal(&z, zCenter + aEff);
+    stepToFinal(&x, xSurface);
+    if (z.pos == zCenter + aEff && x.pos == xSurface) {
+      opIndex = 1; opSubIndex = 0;
+    }
+  } else if (opIndex <= turnPasses) {
+    // Phase 1..turnPasses: roughing — horizontal passes from right to left at
+    // increasing depth, following the ellipse boundary at each depth level.
+    long dSteps = bEff * opIndex / turnPasses; // current X depth (steps)
+
+    // Z half-width at this depth: aEff × cos(θ) where sin(θ) = d/bEff
+    float sinT   = (bEff > 0) ? (float)dSteps / bEff : 0.0f;
+    float cosT   = sqrtf(fmaxf(0.0f, 1.0f - sinT * sinT));
+    long  zwSteps = lroundf(aEff * cosT);
+
+    long xTarget = xSurface + xDir * dSteps;
+
+    if (opSubIndex == 0) {
+      // Reposition Z to right edge at this depth level
+      z.speedMax = z.speedManualMove;
+      stepToFinal(&z, zCenter + zwSteps);
+      if (z.pos == zCenter + zwSteps) opSubIndex = 1;
+    } else if (opSubIndex == 1) {
+      // Plunge X to depth
+      x.speedMax = LONG_MAX;
+      stepToFinal(&x, xTarget);
+      if (x.pos == xTarget) opSubIndex = 2;
+    } else if (opSubIndex == 2) {
+      // Cut from right to left (the main material-removal stroke)
+      z.speedMax = LONG_MAX;
+      stepToFinal(&z, zCenter - zwSteps);
+      if (z.pos == zCenter - zwSteps) opSubIndex = 3;
+    } else if (opSubIndex == 3) {
+      // Retract X back to surface
+      x.speedMax = x.speedManualMove;
+      stepToFinal(&x, xSurface);
+      if (x.pos == xSurface) { opSubIndex = 0; opIndex++; }
+    }
+  } else if (opIndex == turnPasses + 1) {
+    // Phase: finish pass — continuously trace the full ellipse contour
+    // from the right edge to the left edge.  X is driven by Z position.
+    z.speedMax = z.speedManualMove;
+    x.speedMax = z.speedManualMove; // keep speeds matched for smooth path
+
+    // Compute the required X for the current Z position (ellipse equation)
+    float zOff = (float)(z.pos - zCenter);
+    float cosT = (aEff > 0) ? (zOff / aEff) : 0.0f;
+    cosT = fmaxf(-1.0f, fminf(1.0f, cosT));
+    float sinT  = sqrtf(1.0f - cosT * cosT);
+    long xTarget = xSurface + xDir * lroundf(bEff * sinT);
+
+    stepToContinuous(&z, zCenter - aEff); // drive Z toward left edge
+    stepToContinuous(&x, xTarget);        // X follows the ellipse
+
+    if (z.pos == zCenter - aEff) {
+      opIndex = turnPasses + 2; opSubIndex = 0;
+    }
+  } else {
+    // Done: retract X, return Z to starting position
+    x.speedMax = x.speedManualMove;
+    z.speedMax = z.speedManualMove;
+    stepToFinal(&x, xSurface);
+    stepToFinal(&z, zCenter + aEff);
+    if (x.pos == xSurface && z.pos == zCenter + aEff) {
+      setIsOnFromLoop(false);
+      beepFlag = true;
+    }
+  }
+}
+
+// ============================================================
+// GROOVE STRAIGHT — V-belt / trapezoidal groove
+//
+// The groove has straight angled flanks at grooveStraightAngleTenths/10 degrees
+// from vertical.  Z stops define the top width (ZP); X stops define the depth (XP).
+// grooveToolRadiusDu is used as the tool half-width (not a corner radius here).
+//
+// Bottom half-width (steps): zHalfSteps − XP_du × tan(angle) × z.motorSteps / z.screwPitch
+//
+// Standard V-belt angles: SPZ/SPA/SPB/SPC → 34° or 38°.  Set via +/- at setup.
+// ============================================================
+
+void modeGrooveStraight() {
+  if (z.movingManually || x.movingManually || turnPasses <= 0 ||
+      z.leftStop == LONG_MAX || z.rightStop == LONG_MIN ||
+      x.leftStop == LONG_MAX || x.rightStop == LONG_MIN) {
+    setIsOnFromLoop(false);
+    return;
+  }
+
+  long xSurface    = auxForward ? x.rightStop : x.leftStop;
+  long xDeep       = auxForward ? x.leftStop  : x.rightStop;
+  int  xDir        = (xDeep > xSurface) ? 1 : -1;
+  long zCenter     = (z.leftStop + z.rightStop) / 2;
+  long zHalfSteps  = abs(z.leftStop - z.rightStop) / 2;
+  long xTotalSteps = abs(xDeep - xSurface);
+
+  // Tool half-width in Z steps (grooveToolRadiusDu used as half tool width)
+  long toolHalfZ = lroundf(grooveToolRadiusDu * z.motorSteps / z.screwPitch);
+
+  // Flank angle
+  float angleRad  = (grooveStraightAngleTenths / 10.0f) * (float)M_PI / 180.0f;
+  float tanAngle  = tanf(angleRad);
+
+  // Full-depth Z shift per unit X depth (in step/step, via du conversion)
+  float xDuPerStep = x.screwPitch / x.motorSteps; // du per X step
+  float zStepPerDu = z.motorSteps / z.screwPitch;  // Z steps per du
+  float zShiftPerXStep = xDuPerStep * tanAngle * zStepPerDu;
+
+  // Bottom half-width (steps) = ZP/2 − XP × tan(angle) [in step space]
+  long zShiftFull   = lroundf(xTotalSteps * zShiftPerXStep);
+  long bottomHalfZ  = zHalfSteps - zShiftFull;
+
+  if (bottomHalfZ < toolHalfZ) {
+    // Bottom is narrower than tool — cannot cut safely
+    setIsOnFromLoop(false);
+    return;
+  }
+
+  if (opIndex == 0) {
+    // Position tool to groove centre at surface
+    z.speedMax = z.speedManualMove;
+    x.speedMax = x.speedManualMove;
+    stepToFinal(&z, zCenter);
+    stepToFinal(&x, xSurface);
+    if (z.pos == zCenter && x.pos == xSurface) {
+      opIndex = 1; opSubIndex = 0;
+    }
+  } else if (opIndex <= turnPasses) {
+    // Roughing: plunge + horizontal sweep at each depth level.
+    // The sweep clears only the groove-bottom area (not the flanks).
+    long dSteps  = xTotalSteps * opIndex / turnPasses;
+    long xTarget = xSurface + xDir * dSteps;
+
+    // Z half-width available at this depth for the centre sweep
+    long zShiftAtD = lroundf(dSteps * zShiftPerXStep);
+    long halfWidthAtD = zHalfSteps - zShiftAtD; // groove inner half-width at this depth
+    // Centre-clear region: subtract tool half-width from each side
+    long sweepHalf = halfWidthAtD - toolHalfZ;
+    if (sweepHalf < 0) sweepHalf = 0;
+
+    if (opSubIndex == 0) {
+      // Move to right side of centre clear zone
+      z.speedMax = z.speedManualMove;
+      stepToFinal(&z, zCenter + sweepHalf);
+      if (z.pos == zCenter + sweepHalf) opSubIndex = 1;
+    } else if (opSubIndex == 1) {
+      // Plunge to depth
+      x.speedMax = LONG_MAX;
+      stepToFinal(&x, xTarget);
+      if (x.pos == xTarget) opSubIndex = 2;
+    } else if (opSubIndex == 2) {
+      // Sweep left through the centre (cuts groove bottom)
+      z.speedMax = LONG_MAX;
+      stepToFinal(&z, zCenter - sweepHalf);
+      if (z.pos == zCenter - sweepHalf) opSubIndex = 3;
+    } else if (opSubIndex == 3) {
+      // Retract X
+      x.speedMax = x.speedManualMove;
+      stepToFinal(&x, xSurface);
+      if (x.pos == xSurface) { opSubIndex = 0; opIndex++; }
+    }
+  } else if (opIndex == turnPasses + 1) {
+    // Right flank finish: simultaneous Z+X linear move from top corner to bottom corner.
+    // Right flank runs from (zCenter + zHalfSteps, xSurface) to (zCenter + bottomHalfZ, xDeep).
+    z.speedMax = x.speedManualMove;
+    x.speedMax = x.speedManualMove;
+
+    if (opSubIndex == 0) {
+      // Position to top of right flank
+      stepToFinal(&z, zCenter + zHalfSteps);
+      stepToFinal(&x, xSurface);
+      if (z.pos == zCenter + zHalfSteps && x.pos == xSurface) opSubIndex = 1;
+    } else {
+      // Drive Z inward; X tracks proportionally
+      long zFlankHeight = zHalfSteps - bottomHalfZ; // positive, Z steps traversed on flank
+      long zTravelled   = (zCenter + zHalfSteps) - z.pos; // how far Z has moved so far
+      long xTarget      = (zFlankHeight > 0)
+                          ? xSurface + xDir * lroundf((float)zTravelled * xTotalSteps / zFlankHeight)
+                          : xDeep;
+      if (xDir > 0) xTarget = min(xTarget, xDeep);
+      else          xTarget = max(xTarget, xDeep);
+      stepToContinuous(&z, zCenter + bottomHalfZ);
+      stepToContinuous(&x, xTarget);
+      if (z.pos == zCenter + bottomHalfZ && x.pos == xDeep) {
+        opIndex = turnPasses + 2; opSubIndex = 0;
+      }
+    }
+  } else if (opIndex == turnPasses + 2) {
+    // Left flank finish: mirror of right flank.
+    z.speedMax = x.speedManualMove;
+    x.speedMax = x.speedManualMove;
+
+    if (opSubIndex == 0) {
+      // Retract X, reposition to top of left flank
+      stepToFinal(&x, xSurface);
+      if (x.pos == xSurface) {
+        stepToFinal(&z, zCenter - zHalfSteps);
+        if (z.pos == zCenter - zHalfSteps) opSubIndex = 1;
+      }
+    } else {
+      long zFlankHeight = zHalfSteps - bottomHalfZ;
+      long zTravelled   = z.pos - (zCenter - zHalfSteps); // Z moved rightward (toward center)
+      long xTarget      = (zFlankHeight > 0)
+                          ? xSurface + xDir * lroundf((float)zTravelled * xTotalSteps / zFlankHeight)
+                          : xDeep;
+      if (xDir > 0) xTarget = min(xTarget, xDeep);
+      else          xTarget = max(xTarget, xDeep);
+      stepToContinuous(&z, zCenter - bottomHalfZ);
+      stepToContinuous(&x, xTarget);
+      if (z.pos == zCenter - bottomHalfZ && x.pos == xDeep) {
+        opIndex = turnPasses + 3; opSubIndex = 0;
+      }
+    }
+  } else {
+    // Done: retract X, return Z to centre
+    x.speedMax = x.speedManualMove;
+    z.speedMax = z.speedManualMove;
+    stepToFinal(&x, xSurface);
+    stepToFinal(&z, zCenter);
+    if (x.pos == xSurface && z.pos == zCenter) {
+      setIsOnFromLoop(false);
+      beepFlag = true;
+    }
   }
 }
 

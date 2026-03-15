@@ -143,6 +143,19 @@ extern long  opSubIndex;
 extern int   opDuprSign;
 extern long  opDupr;
 
+// Threading cutting strategy
+extern int  threadCutMode;
+extern int  savedThreadCutMode;
+extern int  threadAngleTenths;   // Thread included angle × 10 (e.g. 600 = 60°)
+extern int  savedThreadAngleTenths;
+extern long threadSpindleOffset; // Spindle-step offset for current flank-infeed pass (not persisted)
+
+// Groove mode parameters
+extern float grooveToolRadiusDu;        // Tool corner radius in deci-microns
+extern float savedGrooveToolRadiusDu;
+extern int   grooveStraightAngleTenths; // V-belt flank angle × 10 (e.g. 340 = 34°)
+extern int   savedGrooveStraightAngleTenths;
+
 // Manual step size
 extern long moveStep;
 extern long savedMoveStep;
