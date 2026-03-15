@@ -152,3 +152,20 @@
 #define NAME_Z 'Z'
 #define NAME_X 'X'
 #define NAME_Y 'Y'
+
+// Linear scale DRO — GPIO pins (from PCB netlist)
+#define Z_SCALE_A              9      // Z scale quadrature A
+#define Z_SCALE_B              12     // Z scale quadrature B
+#define X_SCALE_A              40     // X scale quadrature A
+#define X_SCALE_B              39     // X scale quadrature B
+
+// Pulses per mm — must be calibrated for the specific scale installed.
+// 200 ppm corresponds to a typical 5µm-resolution magnetic linear scale
+// with X2 (single-edge) decoding as used by the DRO_Scale driver.
+#define DEFAULT_Z_SCALE_PPM    200.0f
+#define DEFAULT_X_SCALE_PPM    200.0f
+
+// Set to true if a linear scale is physically connected and should be read.
+// Leave false (default) when no scale is installed — avoids floating-input noise.
+#define DEFAULT_Z_DRO_ACTIVE   false
+#define DEFAULT_X_DRO_ACTIVE   false

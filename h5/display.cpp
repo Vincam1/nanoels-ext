@@ -1,6 +1,7 @@
 #include "display.h"
 #include "storage.h"
 #include "stepper.h"
+#include "dro.h"
 
 // ============================================================
 // NEXTION COMMUNICATION
@@ -264,16 +265,42 @@ void updateDisplay() {
     x.pos + x.originPos + x.disabled + x.leftStop - x.rightStop +
     z.pos + z.originPos + z.disabled + z.leftStop - z.rightStop +
     y.pos + y.originPos + y.disabled + y.leftStop - y.rightStop +
-    measure + x.pos % 100;
+    measure + x.pos % 100 +
+    (zDroActive && zDroMode ? (long)(zScale.getPosition() * 100) : 0) +
+    (xDroActive && xDroMode ? (long)(xScale.getPosition() * 100) : 0) +
+    zDroMode * 10000L + xDroMode * 20000L;
   if (lcdHashLine2 != newHashLine2) {
     lcdHashLine2 = newHashLine2;
-    setText("tX",     !x.active || x.disabled ? "" : printAxisPos(&x));
+
+    // X axis — green text when showing scale position, white for stepper
+    if (!x.active || x.disabled) {
+      setText("tX", "");
+      toScreen("tX.pco=65535");
+    } else if (xDroActive && xDroMode) {
+      setText("tX", String(xScale.getPosition(), 3));
+      toScreen("tX.pco=2016");   // green
+    } else {
+      setText("tX", printAxisPos(&x));
+      toScreen("tX.pco=65535");  // white
+    }
     setText("tXUp",   !x.active || x.disabled ? "" : printDistanceToLeftStop(&x));
     setText("tXDown", !x.active || x.disabled ? "" : printDistanceToRightStop(&x));
+
     setText("tY",     !y.active || y.disabled ? "" : printAxisPos(&y));
     setText("tYUp",   !y.active || y.disabled ? "" : printDistanceToLeftStop(&y));
     setText("tYDown", !y.active || y.disabled ? "" : printDistanceToRightStop(&y));
-    setText("tZ",     !z.active || z.disabled ? "" : printAxisPos(&z));
+
+    // Z axis — green text when showing scale position, white for stepper
+    if (!z.active || z.disabled) {
+      setText("tZ", "");
+      toScreen("tZ.pco=65535");
+    } else if (zDroActive && zDroMode) {
+      setText("tZ", String(zScale.getPosition(), 3));
+      toScreen("tZ.pco=2016");   // green
+    } else {
+      setText("tZ", printAxisPos(&z));
+      toScreen("tZ.pco=65535");  // white
+    }
     setText("tZLeft",  !z.active || z.disabled ? "" : printDistanceToLeftStop(&z));
     setText("tZRight", !z.active || z.disabled ? "" : printDistanceToRightStop(&z));
   }

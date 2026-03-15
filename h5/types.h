@@ -104,6 +104,11 @@
 #define B_SETTINGS_SAVE   109  // Save settings to flash and reboot
 #define B_SETTINGS_CANCEL 110  // Cancel and return to main page
 
+// DRO toggle — tap the tZ / tX display area on Nextion to switch between
+// scale readout (green) and stepper position (white). Nextion button IDs 52/53.
+#define B_Z_DRO  111  // Toggle Z axis DRO mode
+#define B_X_DRO  112  // Toggle X axis DRO mode
+
 // ============================================================
 // PREFERENCES STORAGE KEYS
 // Runtime state (axis positions, mode, etc.)

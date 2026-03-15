@@ -14,6 +14,7 @@
 #include "settings.h"
 #include "gcode.h"
 #include "wifi_server.h"
+#include "dro.h"
 
 void setup() {
   // Load hardware configuration from Preferences (falls back to config.h defaults)

@@ -202,3 +202,11 @@ extern byte      lastNextionPageId;
 
 // Multi-start button timing
 extern unsigned long multistartPressMillis;
+
+// ============================================================
+// DRO (LINEAR SCALE) STATE
+// ============================================================
+extern bool zDroActive; // Scale is physically connected and should be read
+extern bool xDroActive;
+extern bool zDroMode;   // true = display scale position; false = display stepper position
+extern bool xDroMode;

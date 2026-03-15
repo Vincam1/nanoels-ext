@@ -199,3 +199,9 @@ byte      lastNextionPageId     = 255;
 
 // Multi-start button timing
 unsigned long multistartPressMillis = 0;
+
+// DRO (linear scale) state
+bool zDroActive = DEFAULT_Z_DRO_ACTIVE;
+bool xDroActive = DEFAULT_X_DRO_ACTIVE;
+bool zDroMode   = false;
+bool xDroMode   = false;

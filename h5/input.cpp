@@ -4,6 +4,7 @@
 #include "modes.h"
 #include "settings.h"
 #include "gcode.h"
+#include "dro.h"
 
 // ============================================================
 // BUTTON HANDLERS
@@ -190,8 +191,22 @@ bool processNumpadResult(int keyCode) {
     return true;
   }
 
-  if (keyCode == B_Z || keyCode == B_X || keyCode == B_Y) { a->originPos = -pos; return true; }
-  if (keyCode == B_DIAMETER || keyCode == B_X_ENA)        { a->originPos = -a->pos - posDiffAbs / 2; return true; }
+  if (keyCode == B_Z) {
+    if (zDroActive && zDroMode) zScale.setPosition(numpadToDeciMicrons() / 10000.0f);
+    else                        a->originPos = -pos;
+    return true;
+  }
+  if (keyCode == B_X) {
+    if (xDroActive && xDroMode) xScale.setPosition(numpadToDeciMicrons() / 10000.0f);
+    else                        a->originPos = -pos;
+    return true;
+  }
+  if (keyCode == B_Y) { a->originPos = -pos; return true; }
+  if (keyCode == B_DIAMETER || keyCode == B_X_ENA) {
+    if (xDroActive && xDroMode) xScale.setPosition(numpadToDeciMicrons() / 20000.0f); // diameter → radius
+    else                        a->originPos = -a->pos - posDiffAbs / 2;
+    return true;
+  }
   if (keyCode == B_STEP) {
     if (newDu > 0) moveStep = newDu;
     else           beepFlag = true;
@@ -288,6 +303,9 @@ static const byte HEX_TO_KEYCODE[256] = {
   [50] = B_MULTISTART,
   // Settings button on page 0 (add to Nextion HMI at id=51)
   [51] = B_SETTINGS_OPEN,
+  // DRO toggle — tap tZ (id=52) or tX (id=53) display area on Nextion
+  [52] = B_Z_DRO,
+  [53] = B_X_DRO,
 };
 
 int processNextionMessage() {
@@ -440,9 +458,17 @@ void processKeypadEvent() {
   else if (keyCode == B_MODE_ASYNC)    setModeFromUi(MODE_ASYNC,   eventFromNextion);
   else if (keyCode == B_MULTISTART)    buttonMultistartPress();
   else if (keyCode == B_DISPL)         buttonDisplayPress();
-  else if (keyCode == B_X)             markAxis0(&x);
-  else if (keyCode == B_Z)             markAxis0(&z);
+  else if (keyCode == B_X) {
+    if (xDroActive && xDroMode) xScale.clearCount();
+    else                        markAxis0(&x);
+  }
+  else if (keyCode == B_Z) {
+    if (zDroActive && zDroMode) zScale.clearCount();
+    else                        markAxis0(&z);
+  }
   else if (keyCode == B_Y && activeY)  markAxis0(&y);
+  else if (keyCode == B_Z_DRO && zDroActive) zDroMode = !zDroMode;
+  else if (keyCode == B_X_DRO && xDroActive) xDroMode = !xDroMode;
   else if (keyCode == B_X_ENA)         { x.disabled = !x.disabled; updateEnable(&x); }
   else if (keyCode == B_Z_ENA)         { z.disabled = !z.disabled; updateEnable(&z); }
   else if (keyCode == B_Y_ENA && activeY) { y.disabled = !y.disabled; updateEnable(&y); }

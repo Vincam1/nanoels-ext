@@ -1,5 +1,6 @@
 #include "stepper.h"
 #include "display.h"
+#include "dro.h"
 
 #define DHIGH(x) digitalWrite(x, HIGH)
 #define DLOW(x)  digitalWrite(x, LOW)
@@ -395,6 +396,7 @@ void taskAttachInterrupts(void* param) {
   startPulseCounter(PCNT_UNIT_1, Z_PULSE_A, Z_PULSE_B);
   startPulseCounter(PCNT_UNIT_2, X_PULSE_A, X_PULSE_B);
   startPulseCounter(PCNT_UNIT_3, Y_PULSE_A, Y_PULSE_B);
+  attachScales();  // PCNT_UNIT_4 (Z scale) and PCNT_UNIT_5 (X scale) — no-op when inactive
   vTaskDelete(NULL);
 }
 
