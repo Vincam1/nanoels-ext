@@ -34,6 +34,7 @@ void DRO_Scale::attach() {
     gpio_pullup_en(bPinNumber);
   }
 
+  // Channel 0: A = pulse, B = direction control (X2 contribution)
   pcnt_config_t pcnt_config = {};
   pcnt_config.pulse_gpio_num = aPinNumber;
   pcnt_config.ctrl_gpio_num  = bPinNumber;
@@ -46,6 +47,22 @@ void DRO_Scale::attach() {
   pcnt_config.counter_h_lim  = 32767;
   pcnt_config.counter_l_lim  = -32768;
   pcnt_unit_config(&pcnt_config);
+
+  // Channel 1: B = pulse, A = direction control, modes swapped (adds X4 contribution).
+  // Both channels write to the same unit counter, giving full X4 quadrature decoding
+  // and doubling resolution (e.g. 800 pulses/mm for a 5 µm scale).
+  pcnt_config_t pcnt_config2 = {};
+  pcnt_config2.pulse_gpio_num = bPinNumber;
+  pcnt_config2.ctrl_gpio_num  = aPinNumber;
+  pcnt_config2.channel        = PCNT_CHANNEL_1;
+  pcnt_config2.unit           = pcntUnit;
+  pcnt_config2.pos_mode       = PCNT_COUNT_DEC;   // swapped vs channel 0
+  pcnt_config2.neg_mode       = PCNT_COUNT_INC;   // swapped vs channel 0
+  pcnt_config2.lctrl_mode     = PCNT_MODE_REVERSE;
+  pcnt_config2.hctrl_mode     = PCNT_MODE_KEEP;
+  pcnt_config2.counter_h_lim  = 32767;
+  pcnt_config2.counter_l_lim  = -32768;
+  pcnt_unit_config(&pcnt_config2);
 
   if (filter > 0) {
     pcnt_set_filter_value(pcntUnit, filter);
