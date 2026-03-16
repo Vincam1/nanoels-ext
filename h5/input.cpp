@@ -26,9 +26,9 @@ void buttonPlusMinusPress(bool plus) {
     if (plus)  grooveToolRadiusDu = fminf(50000.0f, grooveToolRadiusDu + 1000.0f);
     else       grooveToolRadiusDu = fmaxf(0.0f,     grooveToolRadiusDu - 1000.0f);
   } else if (mode == MODE_GROOVE_STRAIGHT && setupIndex == 3) {
-    // Adjust V-belt flank angle in 1° steps
+    // Adjust V-belt flank angle in 1° steps (minimum 1°; 0° would be rectangular/degenerate)
     if (plus  && grooveStraightAngleTenths < 890) grooveStraightAngleTenths += 10;
-    else if (minus && grooveStraightAngleTenths > 0) grooveStraightAngleTenths -= 10;
+    else if (minus && grooveStraightAngleTenths > 10) grooveStraightAngleTenths -= 10;
     else beepFlag = true;
   } else if (mode == MODE_TAPER && setupIndex == 1) {
     if (plus  && taperPreset < TAPER_PRESET_COUNT - 1) taperPreset++;
@@ -184,7 +184,7 @@ bool processNumpadResult(int keyCode) {
     } else if (mode == MODE_GROOVE && setupIndex == 3 && newDu > 0) {
       grooveToolRadiusDu = (float)newDu;
       setupIndex++;
-    } else if (mode == MODE_GROOVE_STRAIGHT && setupIndex == 3 && numpadResult >= 0 && numpadResult < 90) {
+    } else if (mode == MODE_GROOVE_STRAIGHT && setupIndex == 3 && numpadResult > 0 && numpadResult < 90) {
       grooveStraightAngleTenths = (int)numpadResult * 10;
       setupIndex++;
     } else if (mode == MODE_CONE && setupIndex == 1) {

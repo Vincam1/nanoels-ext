@@ -636,7 +636,9 @@ void modeGrooveStraight() {
       else          xTarget = max(xTarget, xDeep);
       stepToContinuous(&z, zCenter + bottomHalfZ);
       stepToContinuous(&x, xTarget);
-      if (z.pos == zCenter + bottomHalfZ && x.pos == xDeep) {
+      // Gate completion on Z only — Z is the driving axis.  X tracks proportionally
+      // and will be within 1 step of xDeep when Z reaches its target.
+      if (z.pos == zCenter + bottomHalfZ) {
         opIndex = turnPasses + 2; opSubIndex = 0;
       }
     }
@@ -662,7 +664,8 @@ void modeGrooveStraight() {
       else          xTarget = max(xTarget, xDeep);
       stepToContinuous(&z, zCenter - bottomHalfZ);
       stepToContinuous(&x, xTarget);
-      if (z.pos == zCenter - bottomHalfZ && x.pos == xDeep) {
+      // Gate completion on Z only — same reasoning as right flank above.
+      if (z.pos == zCenter - bottomHalfZ) {
         opIndex = turnPasses + 3; opSubIndex = 0;
       }
     }
